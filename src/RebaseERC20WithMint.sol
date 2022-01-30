@@ -3,17 +3,17 @@ pragma solidity ^0.8.2;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract RebaseERC20 is ERC20 {
+contract RebaseERC20WithMint is ERC20 {
     event LogRebase(uint256 indexed epoch, uint256 totalSupply);
     event Debug(string message, uint256);
 
     uint256 public constant DECIMALS = 9;
     uint256 private constant MAX_UINT256 = type(uint256).max;
-    uint256 private constant INITIAL_TOTAL_SUPPLY = 50 * 10**6 * 10**DECIMALS;
+    uint256 private constant INITIAL_TOTAL_SUPPLY = 1;
 
     // TOTAL_BASE_UNITS is a multiple of INITIAL_TOTAL_SUPPLY so that _baseUnitsPerSupply is an integer.
     // Use the highest value that fits in a uint256 for max granularity.
-    uint256 private constant TOTAL_BASE_UNITS =
+    uint256 private TOTAL_BASE_UNITS =
         MAX_UINT256 - (MAX_UINT256 % INITIAL_TOTAL_SUPPLY);
 
     // MAX_SUPPLY = maximum integer < (sqrt(4*TOTAL_BASE_UNITS + 1) - 1) / 2
@@ -25,12 +25,34 @@ contract RebaseERC20 is ERC20 {
 
     mapping(address => mapping(address => uint256)) private _allowances;
 
-    constructor() ERC20("MyToken", "MTK") {
-        _totalSupply = INITIAL_TOTAL_SUPPLY; // 50 million
-        _baseUnitBalances[msg.sender] = TOTAL_BASE_UNITS; // 75 million
-        _baseUnitsPerSupply = TOTAL_BASE_UNITS / _totalSupply; // (50 / 75) = 0.1
+    constructor() ERC20("MyToken", "MTK") {  
+
+        // Simulate minting total supply to msg.sender. 
+        _totalSupply = INITIAL_TOTAL_SUPPLY;
+        emit Debug("_totalSupply: ", _totalSupply);
+        _baseUnitsPerSupply = TOTAL_BASE_UNITS / _totalSupply; 
+        emit Debug("_baseUnitsPerSupply: ", _baseUnitsPerSupply);
+        uint256 value = _totalSupply; 
+        uint256 baseUnitValue = value * _baseUnitsPerSupply; 
+        _baseUnitBalances[msg.sender] = baseUnitValue;
+        emit Debug("Base Unit Value: ", baseUnitValue);
+
     }
 
+    function mint(address to, uint256 value) public {
+        require(to != address(0), "ERC20: mint to the zero address");
+
+        uint256 baseUnitValue = value * _baseUnitsPerSupply; 
+        emit Debug("Base Unit Value: ", baseUnitValue);
+        // _beforeTokenTransfer(address(0), to, baseUnitValue);
+
+        // _totalSupply += value;
+        // _baseUnitBalances[to] = _baseUnitBalances[to] + baseUnitValue;
+
+        // emit Transfer(address(0), to, value);
+
+        // _afterTokenTransfer(address(0), to, baseUnitValue);
+    }
     /**
      * @param supplyDelta The number of new tokens to add into circulation via expansion.
      * @return The total number of fragments after the supply adjustment.
@@ -97,7 +119,7 @@ contract RebaseERC20 is ERC20 {
     /**
      * @return the total number of baseUnits.
      */
-    function scaledTotalSupply() external pure returns (uint256) {
+    function scaledTotalSupply() external view returns (uint256) {
         return TOTAL_BASE_UNITS;
     }
 
